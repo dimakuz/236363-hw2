@@ -61,11 +61,11 @@ void parseInput()
                 argc = sscanf(arguments, "%s", name);
                 check_arguments(1) ? addUser(name) : illegalCommand();
             }
-          /*  else if (check_command(COMMAND_ADD_USER_MIN))
+            else if (check_command(COMMAND_ADD_USER_MIN))
             {
                 argc = sscanf(arguments, "%s", name);
                 check_arguments(1) ? addUserMin(name) : illegalCommand();
-            }*/
+            }
             else if (check_command(COMMAND_REMOVE_USER))
             {
                 argc = sscanf(arguments, "%s", userId);
@@ -81,7 +81,7 @@ void parseInput()
                 argc = sscanf(arguments, "%s %s %s", userId, photoId, info);
                 check_arguments(3) ? tagPhoto(userId, photoId, info) : illegalCommand();
             }
-          /*  else if (check_command(COMMAND_PHOTOS_TAGS))
+            else if (check_command(COMMAND_PHOTOS_TAGS))
             {
                 photosTags();
             }
@@ -112,7 +112,7 @@ void parseInput()
             else if (check_command(COMMAND_ADD_PHOTOS_ON_TAG_OFF))
             {
                 autoPhotoOnTagOFF();
-            }*/
+            }
             else if (check_command(COMMAND_EXIT)) 
             {
                 break;
