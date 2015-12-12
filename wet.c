@@ -1,134 +1,139 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <libpq-fe.h>
 #include "wet.h"
+#include <libpq-fe.h>
 
-static PGconn *conn;
+PGconn *conn;
 
-// INSERT INTO users(id, name)
-// VALUES
-//  (1 + (SELECT max(id) FROM users), %s)
-// RETURNING id;
-void *addUser(const char *name) {
-    const char *params[1] = {name};
-    const int lens[1] = {(int) strlen(name)};
-    const int fmts[1] = {0};
+void* addUser(const char* name)
+{
+    PGresult *res;
+    char param[200];
+    sprintf(param, "INSERT INTO users "
+    				"VALUES ( "
+    						"1 + (SELECT MAX(id) FROM "
+    						"(SELECT * FROM USERNAME UNION SELECT -1,'dummy') "
+    						"AS users ), "
 
-    PGresult *res = PQexecParams(
-        conn,
-        "INSERT INTO users (id, name)"
-        "VALUES"
-        "   (1 + (SELECT max(id) FROM users), $1::text)"
-        "RETURNING id;",
-        1,
-        NULL, // Types - deduce from query
-        params,
-        lens,
-        fmts, // Formats - all text
-        0 // Result - in text
-    );
+    				  "'%s' );"
 
-    if (PQresultStatus(res) == PGRES_TUPLES_OK) {
-        printf(ADD_USER, PQgetvalue(res, 0, 0));
-    } else {
-        fprintf(stderr, "Failed to add user: %s", PQerrorMessage(conn));
+    		, name);
+    PQexec(conn, param);
+    res = PQexec(conn, "SELECT MAX(id) FROM users;");
+    printf(ADD_USER, PQgetvalue(res,0,0));
+    PQclear(res);
+}
+
+void* removeUser (const char* id)
+{
+    PGresult *res;
+    char param[200];
+    sprintf(param, "SELECT * FROM users WHERE id = %d", atoi(id));
+    res = PQexec(conn, param);
+    if (!PQntuples(res)) 
+    {
+        printf(ILL_PARAMS);
+        PQclear(res);
+    }
+    else 
+    {
+        PQclear(res);
+        sprintf(param, "DELETE FROM users WHERE id = %d", atoi(id));
+        res = PQexec(conn, param);
+        PQclear(res);
+    }
+    sprintf(param, "DELETE FROM photos WHERE user_id = %d", atoi(id));
+    PQexec(conn, param);
+    sprintf(param, "DELETE FROM tags WHERE user_id = %d", atoi(id));
+    PQexec(conn, param);
+}
+
+void* addPhoto (const char*    user_id,
+                         const char*    photo_id)
+{
+    PGresult *res;
+    char param[200];
+    sprintf(param, "SELECT * FROM users WHERE id = %d", atoi(user_id));
+    res = PQexec(conn, param);
+    if (!PQntuples(res)) 
+    {
+        printf(ILL_PARAMS);
+        PQclear(res);
+        return;
     }
     PQclear(res);
-
-    return NULL;
-}
-
-void *addUserMin(const char *name) {
-    return NULL;
-}
-
-void *removeUser(const char *id) {
-    const char *params[1] = {id};
-    const int lens[1] = {(int) strlen(id)};
-    const int fmts[1] = {0};
-
-    PGresult *res = PQexecParams(
-        conn,
-        "DELETE FROM users WHERE id = $1::integer;",
-        1,
-        NULL, // Types - deduce from query
-        params,
-        lens,
-        fmts, // Formats - all text
-        0 // Result - in text
-    );
-
-    if (PQresultStatus(res) == PGRES_COMMAND_OK) {
-        // Read number of affected rows
-        if (strtol(PQcmdTuples(res), NULL, 10) == 0)
-            printf(ILL_PARAMS);
-    } else {
-        fprintf(stderr, "Failed to remove user: %s", PQerrorMessage(conn));
+    sprintf(param, "SELECT * FROM photos WHERE user_id = %d AND id = %d;",
+                                            atoi(user_id), atoi(photo_id));
+    res = PQexec(conn, param);
+    if (PQntuples(res)) 
+    {
+        printf(EXISTING_RECORD);
+        PQclear(res);
+        return;
     }
     PQclear(res);
-    // FIXME from other tables as well
-
-    return NULL;
+    sprintf(param, "INSERT INTO photos VALUES(%d,%d);",
+                                           atoi(photo_id), atoi(user_id));
+    PQexec(conn, param);
 }
 
-void *addPhoto(const char *user_id, const char *photo_id) {
-    return NULL;
+void* tagPhoto (const char* user_id,
+                         const char* photo_id,
+                         const char* info)
+{
+    PGresult *res;
+    char param[200];
+    sprintf(param, "SELECT * FROM users WHERE id = %d", atoi(user_id));
+    res = PQexec(conn, param);
+    if (!PQntuples(res)) 
+    {
+        printf(ILL_PARAMS);
+        PQclear(res);	
+        return;
+    }
+    PQclear(res);
+    sprintf(param, "SELECT * FROM tags WHERE photo_id = %d AND "
+                                            "user_id = %d AND "
+                                             "info = '%s';",
+                             atoi(photo_id), atoi(user_id), info);
+    res = PQexec(conn, param);
+    if (PQntuples(res))
+    {
+        printf(EXISTING_RECORD);
+        PQclear(res);
+        return;
+    } 
+    PQclear(res);
+    sprintf(param, "INSERT INTO tags VALUES(%d,%d,'%s');",
+                             atoi(photo_id), atoi(user_id), info);
+    PQexec(conn, param);
+}   
+
+void* photosTags ()
+{
+	PGresult *res;
+    char param[200];
+    sprintf(param, "SELECT * FROM tags");
+    res = PQexec(conn, param);
+    if (!PQntuples(res))
+    {
+        printf(EMPTY);
+        PQclear(res);	
+        return;
+    }
+    PQclear(res);
 }
 
-void *tagPhoto(const char *user_id, const char *photo_id, const char *info) {
-    return NULL;
-}
-
-void *photosTags() {
-    return NULL;
-}
-
-void *search(const char *qword) {
-    return NULL;
-}
-
-void *commonTags(const char *k) {
-    return NULL;
-}
-
-void *mostCommonTags(const char *k) {
-    return NULL;
-}
-
-void *similarPhotos(const char *k, const char *j) {
-    return NULL;
-}
-
-void *autoPhotoOnTagOn() {
-    return NULL;
-}
-
-void *autoPhotoOnTagOFF() {
-    return NULL;
-}
-
-
-int main(int argc, char **argv) {
+int main(int argc, char const *argv[])
+{
     char connect_param[200];
-
-    sprintf(
-        connect_param,
-        "host=csl2.cs.technion.ac.il dbname=%s user=%s password=%s",
-        USERNAME,
-        USERNAME,
-        PASSWORD
-    );
-
+    sprintf(connect_param,
+            "host=csl2.cs.technion.ac.il dbname=%s user=%s password=%s",
+            USERNAME, USERNAME, PASSWORD);
     conn = PQconnectdb(connect_param);
-    if (PQstatus(conn) != CONNECTION_OK) {
-        fprintf(
-            stderr,
-            "Failed to connect to the database: %s\n",
-            PQerrorMessage(conn)
-        );
-        return 1;
-    }
+
     parseInput();
+
+    PQfinish(conn);
     return 0;
 }
