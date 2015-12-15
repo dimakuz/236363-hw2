@@ -45,8 +45,37 @@ void *addUser(const char *name) {
 
     return NULL;
 }
-
+/*select MIN(id + 1) from users where id + 1 <> ALL (select id from users);
+*/
 void *addUserMin(const char *name) {
+    const char *params[1] = {name};
+    const int lens[1] = {(int) strlen(name)};
+    const int fmts[1] = {0};
+
+    PGresult *res = PQexecParams(
+        conn,
+        "INSERT INTO users (id, name) "
+        "VALUES "
+            "(select MIN(id + 1) "
+                "from users "
+                "where id + 1 <> ALL "
+                "(select id from users)" 
+                "), $1::text) "
+        "RETURNING id;",
+        1,
+        NULL, // Types - deduce from query
+        params,
+        lens,
+        fmts, // Formats - all text
+        0 // Result - in text
+    );
+
+    if (PQresultStatus(res) == PGRES_TUPLES_OK)
+        printf(ADD_USER, PQgetvalue(res, 0, 0));
+    else
+        printErr("Failed to add user");
+
+    PQclear(res);
     return NULL;
 }
 
