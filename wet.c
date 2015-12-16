@@ -226,8 +226,8 @@ void *search(const char *qword) {
             printf(EMPTY);
         } else {
             printf(PHOTOS_HEADER);
-
-            for (int i = 0; i < PQntuples(res); i++) {
+            int i;
+            for (i = 0; i < PQntuples(res); i++) {
                 printf(
                     PHOTOS_RESULT,
                     PQgetvalue(res, i, 0),
@@ -249,7 +249,8 @@ static void printCommon(PGresult *res) {
     }
 
     printf(COMMON_HEADER);
-    for (int i = 0; i < PQntuples(res); i++) {
+    int i;
+    for (i = 0; i < PQntuples(res); i++) {
         printf(
             COMMON_LINE,
             PQgetvalue(res, i, 0),
@@ -314,7 +315,8 @@ void *similarPhotos(const char *k, const char *j) {
             printf(EMPTY);
         } else {
             printf(SIMILAR_HEADER);
-            for (int i = 0; i < PQntuples(res); i++) {
+            int i;
+            for (i = 0; i < PQntuples(res); i++) {
                 printf(
                     SIMILAR_RESULT,
                     PQgetvalue(res, i, 0),
