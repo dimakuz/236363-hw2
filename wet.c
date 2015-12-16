@@ -56,10 +56,10 @@ void *addUserMin(const char *name) {
         conn,
         "INSERT INTO users (id, name) "
         "VALUES "
-            "(select MIN(id + 1) "
-                "from users "
-                "where id + 1 <> ALL "
-                "(select id from users)" 
+            "((SELECT MIN(id + 1) "
+                "FROM users "
+                "WHERE id + 1 <> ALL "
+                "(SELECT id FROM users) " 
                 "), $1::text) "
         "RETURNING id;",
         1,
