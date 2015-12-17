@@ -191,16 +191,33 @@ void *tagPhoto(const char *user_id, const char *photo_id, const char *info) {
 void *photosTags() {
     PGresult *res;
     char param[200];
-    sprintf(param, "SELECT * FROM tags");
+    sprintf(param,  "SELECT user_id, photo_id, COUNT(photo_id) "
+                    "FROM tags GROUP BY user_id, photo_id "
+                    "ORDER BY COUNT(photo_id) DESC, "
+                                    "  user_id ASC, "
+                                    "  photo_id ASC;");
     res = PQexec(conn, param);
-    if (!PQntuples(res))
-    {
-        printf(EMPTY);
-        PQclear(res);
-        return NULL;
-    }
-    PQclear(res);
 
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+        printErr("Failed to search for tags");
+    } else {
+        if (PQntuples(res) == 0) {
+            printf(EMPTY);
+        } else {
+            printf(PHOTOS_HEADER);
+            int i;
+            for (i = 0; i < PQntuples(res); i++) {
+                printf(
+                    PHOTOS_RESULT,
+                    PQgetvalue(res, i, 0),
+                    PQgetvalue(res, i, 1),
+                    PQgetvalue(res, i, 2)
+                );
+            }
+        }
+    }
+
+    PQclear(res);
     return NULL;
 }
 
