@@ -348,11 +348,50 @@ void *similarPhotos(const char *k, const char *j) {
     return NULL;
 }
 
+static int execute(const char *stmt) {
+    PGresult *res = PQexec(conn, stmt);
+    int ret = PQresultStatus(res) == PGRES_COMMAND_OK;
+    PQclear(res);
+    return ret;
+}
+
 void *autoPhotoOnTagOn() {
+    autoPhotoOnTagOFF();
+    if (!execute(
+        "CREATE OR REPLACE FUNCTION autoadd_photo() \n"
+        "RETURNS TRIGGER AS $$ \n"
+            "BEGIN \n"
+                "IF (NEW.user_id IN (SELECT id FROM users WHERE id = NEW.user_id)) THEN \n"
+                    "IF (NEW.photo_id NOT IN (SELECT id FROM photos WHERE user_id = NEW.user_id)) THEN \n"
+                        "INSERT INTO photos (id, user_id) VALUES (NEW.photo_id, NEW.user_id); \n"
+                    "END IF; \n"
+                "END IF; \n"
+            "RETURN NEW; \n"
+            "END; \n"
+        "$$ LANGUAGE plpgsql;"
+    )) {
+        printErr("Failed to create trigger procedure");
+        return NULL;
+    }
+
+    if (!execute(
+        "CREATE TRIGGER autoadd_photo \n"
+        "BEFORE INSERT ON tags \n"
+        "FOR EACH ROW EXECUTE PROCEDURE autoadd_photo();"
+    )) {
+        printErr("Failed to add trigger to tags table");
+        return NULL;
+    }
+
     return NULL;
 }
 
 void *autoPhotoOnTagOFF() {
+    PGresult *res = PQexec(conn, "DROP TRIGGER IF EXISTS autoadd_photo ON tags;");
+    if (PQresultStatus(res) != PGRES_COMMAND_OK) {
+        printErr("Failed to remove trigger");
+    }
+    PQclear(res);
     return NULL;
 }
 
@@ -369,6 +408,15 @@ int main() {
             "Failed to connect to the database: %s\n",
             PQerrorMessage(conn)
         );
+        return 1;
+    }
+
+    if (!execute("DROP LANGUAGE IF EXISTS plpgsql CASCADE;")) {
+        printErr("Failed to drop language");
+        return 1;
+    }
+    if (!execute("CREATE LANGUAGE plpgsql;")) {
+        printErr("Failed to create language");
         return 1;
     }
     parseInput();
