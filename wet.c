@@ -20,13 +20,8 @@ void *addUser(const char *name) {
         conn,
         "INSERT INTO users (id, name) "
         "VALUES "
-            "(1 + ("
-                "SELECT max(id) AS id FROM users "
-                "UNION "
-                "SELECT 0 "
-                "ORDER BY id DESC "
-                "LIMIT 1"
-            " ), $1::text) "
+            "(1 + (SELECT coalesce(max(id), -1) FROM users), "
+            " $1::text) "
         "RETURNING id;",
         1,
         NULL, // Types - deduce from query
