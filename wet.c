@@ -56,11 +56,10 @@ void *addUserMin(const char *name) {
         conn,
         "INSERT INTO users (id, name) "
         "VALUES "
-            "((SELECT MIN(id + 1) "
+            "(COALESCE((SELECT min(id + 1) AS min "
                 "FROM users "
-                "WHERE id + 1 <> ALL "
-                "(SELECT id FROM users) "
-                "), $1::text);",
+                "WHERE id + 1 NOT IN (SELECT id FROM users) "
+                "), 0), $1::text);",
         1,
         NULL, // Types - deduce from query
         params,
