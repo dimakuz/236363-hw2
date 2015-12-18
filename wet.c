@@ -213,13 +213,14 @@ void *tagPhoto(const char *user_id, const char *photo_id, const char *info) {
 
 void *photosTags() {
     PGresult *res;
-    char param[200];
-    sprintf(param,  "SELECT user_id, photo_id, COUNT(photo_id) "
-                    "FROM tags GROUP BY user_id, photo_id "
-                    "ORDER BY COUNT(photo_id) DESC, "
-                                    "  user_id ASC, "
-                                    "  photo_id ASC;");
-    res = PQexec(conn, param);
+    res = PQexec(
+        conn,
+        "SELECT p.user_id, p.id, COUNT(t.info) AS count "
+        "FROM photos AS p "
+        "LEFT JOIN tags AS t ON p.id = t.photo_id AND p.user_id = t.user_id "
+        "GROUP BY p.user_id, p.id "
+        "ORDER BY count DESC, p.user_id, p.id;"
+    );
 
     if (PQresultStatus(res) != PGRES_TUPLES_OK) {
         printErr("Failed to search for tags");
