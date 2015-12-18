@@ -59,9 +59,8 @@ void *addUserMin(const char *name) {
             "((SELECT MIN(id + 1) "
                 "FROM users "
                 "WHERE id + 1 <> ALL "
-                "(SELECT id FROM users) " 
-                "), $1::text) "
-        "RETURNING id;",
+                "(SELECT id FROM users) "
+                "), $1::text);",
         1,
         NULL, // Types - deduce from query
         params,
@@ -70,12 +69,36 @@ void *addUserMin(const char *name) {
         0 // Result - in text
     );
 
-    if (PQresultStatus(res) == PGRES_TUPLES_OK)
-        printf(ADD_USER, PQgetvalue(res, 0, 0));
-    else
+    if (PQresultStatus(res) != PGRES_COMMAND_OK)
         printErr("Failed to add user");
-
     PQclear(res);
+
+    res = PQexecParams(
+        conn,
+        "SELECT id, name FROM users WHERE name = $1::text ORDER BY id;",
+        1,
+        NULL, // Types - deduce from query
+        params,
+        lens,
+        fmts, // Formats - all text
+        0 // Result - in text
+    );
+
+    if (PQresultStatus(res) != PGRES_TUPLES_OK) {
+        printErr("Could not fetch users of same name");
+    } else {
+        int i;
+        printf(USER_HEADER);
+        for (i = 0; i < PQntuples(res); i++) {
+            printf(
+                USER_RESULT,
+                PQgetvalue(res, i, 0),
+                PQgetvalue(res, i, 1)
+            );
+        }
+    }
+    PQclear(res);
+
     return NULL;
 }
 
