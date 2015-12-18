@@ -20,8 +20,7 @@ void *addUser(const char *name) {
         conn,
         "INSERT INTO users (id, name) "
         "VALUES "
-            "(1 + (SELECT coalesce(max(id), -1) FROM users), "
-            " $1::text) "
+            "((SELECT coalesce(max(id) + 1, 0) FROM users), $1::text) "
         "RETURNING id;",
         1,
         NULL, // Types - deduce from query
@@ -51,10 +50,10 @@ void *addUserMin(const char *name) {
         conn,
         "INSERT INTO users (id, name) "
         "VALUES "
-            "(COALESCE((SELECT min(id + 1) AS min "
+            "((SELECT coalesce(min(id + 1), 0) "
                 "FROM users "
                 "WHERE id + 1 NOT IN (SELECT id FROM users) "
-                "), 0), $1::text);",
+                "), $1::text);",
         1,
         NULL, // Types - deduce from query
         params,
