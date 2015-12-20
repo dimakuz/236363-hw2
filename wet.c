@@ -321,23 +321,31 @@ void *mostCommonTags(const char *k) {
     const int lens[1] = {(int) strlen(k)};
     const int fmts[1] = {0};
 
-    PQexec(conn,
-         "create or replace view infos as "
-        "SELECT t.info, count(t.photo_id) AS num "
-        "FROM tags t, photos p "   
-        "WHERE t.photo_id = p.id "
-        "GROUP BY t.info "
-        "ORDER BY count(t.photo_id) DESC, t.info; ");
-
     PGresult *res = PQexecParams(
         conn,
-        "select  in_1.info, in_1.num "
-        "from infos in_1 "
-        "where coalesce((select count(1) " 
-            "from infos in_2 "
-            "where in_2.num > in_1.num " 
-                "or ( in_2.num = in_1.num and in_2.info < in_1.info )), 0) + 1 "
-                " <= $1::integer;", 
+        "SELECT numbered_summary.info, numbered_summary.count "
+        "FROM ( "
+                "SELECT summary1.info, summary1.count, sum(1) AS ordinal "
+                "FROM ( "
+                        "SELECT t.info, count(t.info) AS count "
+                        "FROM tags AS t "
+                        "GROUP BY t.info "
+                        "ORDER BY count DESC, t.info "
+                ") AS summary1, "
+                "( "
+                        "SELECT t.info, count(t.info) AS count "
+                        "FROM tags AS t "
+                        "GROUP BY t.info "
+                        "ORDER BY count DESC, t.info "
+                ") AS summary2 "
+                "WHERE "
+                        "summary1.count < summary2.count "
+                        "OR "
+                        "(summary1.count = summary2.count AND summary1.info >= summary2.info) "
+                "GROUP BY summary1.info, summary1.count "
+                "ORDER BY ordinal"
+        ") AS numbered_summary "
+        "WHERE numbered_summary.ordinal <= $1::integer;",
         1, NULL, params, lens, fmts, 0
     );
 
