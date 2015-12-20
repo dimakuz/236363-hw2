@@ -8,7 +8,7 @@
 static PGconn *conn;
 
 static void printErr(const char *message) {
-    fprintf(stderr, "%s: %s\n", message, PQerrorMessage(conn));
+    fprintf(stdout, "%s: %s\n", message, PQerrorMessage(conn));
 }
 
 void *addUser(const char *name) {
@@ -450,21 +450,26 @@ void *autoPhotoOnTagOFF() {
     return NULL;
 }
 
+static void silentNoticePrinter(void *arg, const char *message) {}
+
 
 int main() {
     char connect_param[200];
+    fclose(stderr);
     sprintf(connect_param,
             "host=csl2.cs.technion.ac.il dbname=%s user=%s password=%s",
             USERNAME, USERNAME, PASSWORD);
     conn = PQconnectdb(connect_param);
     if (PQstatus(conn) != CONNECTION_OK) {
         fprintf(
-            stderr,
+            stdout,
             "Failed to connect to the database: %s\n",
             PQerrorMessage(conn)
         );
         return 1;
     }
+    // Silence the NOTICEs
+    PQsetNoticeProcessor(conn, silentNoticePrinter, NULL);
 
     if (!execute("DROP LANGUAGE IF EXISTS plpgsql CASCADE;")) {
         printErr("Failed to drop language");
