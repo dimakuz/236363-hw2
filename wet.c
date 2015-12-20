@@ -303,7 +303,7 @@ void *commonTags(const char *k) {
         "FROM tags "
         "GROUP BY info "
         "HAVING count(DISTINCT (user_id::text || '/' || photo_id::text)) >= $1::integer "
-        "ORDER BY count DESC, info DESC",
+        "ORDER BY count DESC, info",
         1, NULL, params, lens, fmts, 0
     );
 
